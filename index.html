@@ -8,28 +8,26 @@
 html,body{margin:0;min-height:100%;background:#17120d;color:#f5e7bd;font-family:Georgia,serif}
 body{display:flex;justify-content:center;padding:10px;box-sizing:border-box}
 main{width:100%;text-align:center}
-h1{font-family:monospace;letter-spacing:3px;font-size:20px}
+h1{font-family:monospace;letter-spacing:3px;font-size:26px;margin:0 0 8px;color:#f1d18b}
 #wrap{position:relative;width:min(1200px,calc(100vw - 20px));margin:auto;border:5px solid #3b2616;background:#6e8879;box-shadow:0 12px 40px #0008}
 
 canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;cursor:crosshair}
 #hud{position:absolute;left:8px;right:8px;top:6px;display:flex;justify-content:space-between;align-items:flex-start;color:#fff7dc;text-shadow:2px 2px #000;font:bold 12px monospace;pointer-events:none}
-#lvl{font-size:12px;background:rgba(20,12,6,.68);padding:4px 7px;border:2px solid #d3a45d;letter-spacing:1px}
-#hp,#en{padding:4px 6px;background:rgba(20,12,6,.55)}
+#lvl{font-size:15px;background:rgba(20,12,6,.68);padding:4px 7px;border:2px solid #d3a45d;letter-spacing:1px}
+#hp,#en,#score{padding:4px 6px;background:rgba(20,12,6,.55)}
+#mute{padding:4px 6px;background:rgba(20,12,6,.55);cursor:pointer;pointer-events:auto}
+#danger{position:absolute;inset:0;background:rgba(255,0,0,.30);pointer-events:none;opacity:0;z-index:4}
+#danger.active{animation:dangerFlash .55s steps(2,end) infinite}
+@keyframes dangerFlash{0%,100%{opacity:0}50%{opacity:1}}
 .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;background:rgba(37,20,8,.82);color:#f8e8b8;text-align:center}
 .hidden{display:none!important}
-.overlay h2{font:bold 30px Georgia,serif;letter-spacing:3px;margin:0 0 4px;text-shadow:2px 3px #000}
+.overlay h2{font:bold 30px Georgia,serif;letter-spacing:3px;margin:0 0 4px;text-shadow:3px 3px #000}
 .subtitle{font:13px monospace;margin-bottom:18px;color:#d9c28d}
 .rules{font:12px monospace;line-height:1.6;margin-bottom:18px}
-button{border:3px solid #2b1b0f;background:#c99545;color:#21150c;padding:9px 20px;font:bold 13px monospace;cursor:pointer;box-shadow:2px 3px #000}
+button{border:3px solid #2b1b0f;background:#c99545;color:#21150c;padding:9px 20px;font:bold 13px monospace;cursor:pointer;box-shadow:3px 3px #000}
 button:hover{background:#e0b45f}
 #msg span{font:12px monospace;margin-top:8px}
 .controls{color:#cdbd9d;line-height:1.5;font:12px monospace}
-#danger{
- position:absolute;inset:0;background:rgba(255,0,0,.30);
- pointer-events:none;opacity:0;z-index:4;
-}
-#danger.active{animation:dangerFlash .55s steps(2,end) infinite}
-@keyframes dangerFlash{0%,100%{opacity:0}50%{opacity:1}}
 </style>
 </head>
 <body>
@@ -38,16 +36,16 @@ button:hover{background:#e0b45f}
 <div id="wrap">
 <canvas id="game" width="400" height="200"></canvas>
 <div id="danger"></div>
-<div id="hud"><span id="lvl">LEVEL 1</span><span id="hp">HP: 5/5</span><span id="en">ENEMIES: 0</span></div>
+<div id="hud"><span id="lvl">LEVEL 1</span><span id="score">SCORE: 0</span><span id="mute" title="Mute (M)">🔊</span><span id="hp">HP: 5/5</span><span id="en">ENEMIES: 0</span></div>
 <div id="start" class="overlay">
 <h2>DUST &amp; DEAD</h2>
 <div class="subtitle">A tiny pixel-western showdown</div>
-<div class="rules"><b>W A S D</b> — move freely<br><b>LEFT CLICK</b> — attack in the direction you're facing<br>Defeat the outlaws. Survive the Angry Bison.</div>
+<div class="rules"><b>W A S D</b> — move freely<br><b>SPACE</b> or <b>LEFT CLICK</b> — attack (hold to keep firing)<br><b>P</b> pause &nbsp;•&nbsp; <b>M</b> mute<br>Defeat the outlaws. Survive the Angry Bison.</div>
 <button id="startBtn">RIDE OUT</button>
 </div>
 <div id="msg" class="overlay hidden"></div>
 </div>
-<p class="controls"><b>W A S D</b> move freely &nbsp;•&nbsp; <b>Left click</b> attack &nbsp;•&nbsp; <b>Enter</b> restart</p>
+<p class="controls"><b>W A S D</b> move &nbsp;•&nbsp; <b>Space / Click</b> attack &nbsp;•&nbsp; <b>P</b> pause &nbsp;•&nbsp; <b>M</b> mute &nbsp;•&nbsp; <b>Enter</b> restart</p>
 <button id="restart">Restart</button>
 </main>
 
@@ -108,15 +106,16 @@ bossBg.onload=()=>bossBgReady=true;
 const enemyImages=enemySprites;
 
 const sounds={};
+// witchCast/witchHit fall back to the general hit sound until a dedicated
+// witch sample is dropped into sound/ (see sound/PUT_WITCH_HIT_SOUND_HERE.txt).
 for(const [k,p] of Object.entries({
   attack:"sound/hit.m4a",
-  enemyShoot:"sound/hit.m4a",
+  hit:"sound/hit.m4a",witchCast:"sound/hit.m4a",
   hurt:"sound/hit.m4a",
   enemyDie:"sound/hit.m4a",
   zombieHit:"sound/Zombie_hit.m4a",
   skeletonHit:"sound/Skeleton_hit.m4a",
   witchHit:"sound/hit.m4a",
-  bossHit:"sound/boss_battle.mp3",
   bossDie:"sound/hit.m4a"
 })){const a=new Audio(p);a.preload="auto";sounds[k]=a}
 
@@ -145,21 +144,31 @@ function playMusicForLevel(){
     music.play().catch(()=>{});
   }
 }
-function snd(k,v=1){
- try{
-   const src=sounds[k];
-   if(!src)return;
-   const a=new Audio(src);
-   a.volume=Math.max(0,Math.min(1,v));
-   a.currentTime=0;
-   a.play().catch(()=>{});
- }catch(e){}
+let muted=false;
+function toggleMute(){
+  muted=!muted;
+  music.muted=muted;bossMusic.muted=muted;
+  document.getElementById("mute").textContent=muted?"🔇":"🔊";
+}
+function snd(k,v=.5){
+  if(muted)return;
+  try{
+    const a=sounds[k];
+    if(!a)return;
+    const c=a.cloneNode();
+    c.volume=Math.min(1,v);
+    c.play().catch(()=>{});
+  }catch{}
 }
 
-let keys=new Set(),state="start",level=1,player,enemies=[],particles=[],bullets=[],enemyBullets=[],last=performance.now(),dt=.0167,shake=0,clearTimer=0,transitionTimer=null;
+let keys=new Set(),state="start",prevState=null,level=1,player,enemies=[],particles=[],bullets=[],enemyBullets=[],last=performance.now(),dt=.0167,shake=0,clearTimer=0,transitionTimer=null,firing=false,score=0,best=+localStorage.getItem("dustdead_best")||0;
+function togglePause(){
+  if(state==="playing"){prevState=state;state="paused";music.pause();bossMusic.pause();showMsg("PAUSED","Press P or Esc to resume")}
+  else if(state==="paused"){state=prevState||"playing";prevState=null;hideMsg();playMusicForLevel()}
+}
 const obstacles=[
- {x:0,y:0,w:2,h:2},{x:230,y:19,w:2,h:2},{x:310,y:31,w:2,h:2},
- {x:121,y:73,w:2,h:2},{x:179,y:81,w:2,h:2}
+ {x:0,y:0,w:72,h:33},{x:230,y:19,w:30,h:45},{x:310,y:31,w:86,h:57},
+ {x:121,y:73,w:14,h:24},{x:179,y:81,w:22,h:34}
 ];
 const cfgs={
  1:{types:["skeleton","zombie","witch"]},
@@ -168,6 +177,7 @@ const cfgs={
  4:{types:["zombie","zombie","skeleton","skeleton","witch","witch","witch"]},
  5:{types:["bison"],boss:true}
 };
+const scoreValues={zombie:100,skeleton:150,witch:200,bison:1000};
 const mobStats={
  zombie:{hp:1,speed:.42},
  skeleton:{hp:2,speed:.42},
@@ -204,24 +214,24 @@ function norm(x,y){const m=Math.hypot(x,y);return m?[x/m,y/m]:[0,0]}
 function setup(){
  if(transitionTimer!==null){clearTimeout(transitionTimer);transitionTimer=null}
  const bossLevel=level===5;
- player={x:bossLevel?180:24,y:bossLevel?100:145,w:2,h:2,facing:"right",health:5,inv:0,attack:0,cool:0};
+ player={x:bossLevel?180:24,y:bossLevel?100:145,w:15,h:30,facing:"right",health:5,inv:0,attack:0,cool:0};
  enemies=[];particles=[];bullets=[];enemyBullets=[];clearTimer=0;state="playing";hideMsg();playMusicForLevel();
  const c=cfgs[level];
  if(!bossLevel){
   const spots=[[45,45],[90,135],[150,35],[205,145],[260,135],[285,105],[335,120],[365,45],[100,55]];
   for(let i=0;i<c.types.length;i++){
    const type=c.types[i],st=mobStats[type];let [x,y]=spots[i%spots.length];
-   let t={x,y,w:2,h:2};
+   let t={x,y,w:15,h:30};
    if(blocked(t)||overlap(t,player)){
-    for(let n=0;n<80;n++){const tx=20+Math.random()*360,ty=20+Math.random()*130,test={x:tx,y:ty,w:2,h:2};
+    for(let n=0;n<80;n++){const tx=20+Math.random()*360,ty=20+Math.random()*130,test={x:tx,y:ty,w:15,h:30};
      if(!blocked(test)&&!overlap(test,player)){x=tx;y=ty;break}}
    }
-   enemies.push({type,x,y,w:2,h:2,hp:st.hp,max:st.hp,speed:st.speed,hurt:0,flash:2,ac:0,dead:false,boss:false,
+   enemies.push({type,x,y,w:15,h:30,hp:st.hp,max:st.hp,speed:st.speed,hurt:0,flash:0,ac:0,dead:false,boss:false,
     strafe:Math.random()<.5?-1:1,strafeTimer:.25+Math.random()*.9,dodgeTimer:.15+Math.random()*.7,
     wander:Math.random()*Math.PI*2,shotCooldown:1+Math.random()*2,momentumX:1,momentumY:0});
   }
  }else{
-  enemies.push({type:"bison",x:340,y:100,w:2,h:2,hp:20,max:20,speed:.68*1.33,hurt:0,flash:2,ac:0,dead:false,boss:true});
+  enemies.push({type:"bison",x:340,y:100,w:30,h:30,hp:20,max:20,speed:.68*1.33,hurt:0,flash:0,ac:0,dead:false,boss:true});
  }
  hud();
 }
@@ -229,6 +239,7 @@ function updatePlayer(){
  player.attack=Math.max(0,player.attack-dt);player.cool=Math.max(0,player.cool-dt);player.inv=Math.max(0,player.inv-dt);
  let dx=0,dy=0;if(keys.has("KeyA")){dx--;player.facing="left"}if(keys.has("KeyD")){dx++;player.facing="right"}if(keys.has("KeyW"))dy--;if(keys.has("KeyS"))dy++;
  [dx,dy]=norm(dx,dy);moveFree(player,dx*1.75,dy*1.75);
+ if(firing)hit();
 }
 function updateEnemy(e){
  if(e.dead)return;
@@ -251,11 +262,11 @@ function updateEnemy(e){
 }
 function hit(){
  if(state!=="playing"||player.attack>0||player.cool>0)return;
- player.attack=.1; player.cool=0.3;
+ player.attack=.1; player.cool=.3;
  const dir=player.facing==="right"?1:-1;
  const bx=player.facing==="right"?player.x+15:player.x-4;
  const by=player.y+12;
- bullets.push({x:bx,y:by,w:2,h:2,vx:dir*3.375,life:2});
+ bullets.push({x:bx,y:by,w:6,h:3,vx:dir*3.375,life:2});
  for(let i=0;i<6;i++)particles.push({x:bx,y:by,vx:dir*(.4+Math.random()),vy:(Math.random()-.5),life:.2,size:2,color:"#f3c84b"});
  snd("attack",1);
 }
@@ -263,54 +274,42 @@ function hit(){
 function spawnDefeatParticles(e){
  for(let i=0;i<12;i++){
    const a=Math.random()*Math.PI*2,sp=.35+Math.random()*1.25;
-   particles.push({x:e.x+e.w/2,y:e.y+e.h/2,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.35+Math.random()*.35,size:2});
+   particles.push({x:e.x+e.w/2,y:e.y+e.h/2,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.35+Math.random()*.35,size:1+Math.random()*2});
  }
 }
 function damage(e){
  if(e.hurt>0||e.dead)return;
- e.hp--;
- e.hurt=.16;
- e.flash=.1;
- e.x+=player.facing==="right"?4:-4;
+ e.hp--;e.hurt=.16;e.flash=.1;e.x+=player.facing==="right"?4:-4;
  shake=Math.max(shake,e.boss?4:2);
-
- if(e.type==="zombie") snd("zombieHit",1);
- else if(e.type==="skeleton") snd("skeletonHit",1);
- else if(e.type==="witch") snd("witchHit",1);
-
+ const hitSound = e.type==="zombie" ? "zombieHit" :
+   e.type==="skeleton" ? "skeletonHit" :
+   e.type==="witch" ? "witchHit" : "hit";
+ snd(hitSound,e.boss?.60:.55);
  if(e.hp<=0){
    e.dead=true;
-   snd("enemyShoot",.45);
    spawnDefeatParticles(e);
+   snd(e.boss?"bossDie":"enemyDie",.7);
+   score+=scoreValues[e.type]||100;
  }
 }
-function playerHitBuzz(){
- try{
-   const AC=window.AudioContext||window.webkitAudioContext;
-   if(!AC)return;
-   const ac=new AC();
-   const osc=ac.createOscillator();
-   const gain=ac.createGain();
-   osc.type="sawtooth";
-   osc.frequency.setValueAtTime(105,ac.currentTime);
-   osc.frequency.exponentialRampToValueAtTime(58,ac.currentTime+0.16);
-   gain.gain.setValueAtTime(0.0001,ac.currentTime);
-   gain.gain.exponentialRampToValueAtTime(0.18,ac.currentTime+0.012);
-   gain.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+0.18);
-   osc.connect(gain);gain.connect(ac.destination);
-   osc.start();osc.stop(ac.currentTime+0.19);
- }catch(e){}
-}
 function hurt(){
- if(player.inv>0)return;
- player.health--;
- player.inv=.8;
- playerHitBuzz();
- shake=Math.max(shake,5);
- if(player.health<=0){
-   state="dead";
-   document.getElementById("danger").classList.add("hidden");
-   showMsg("YOU DIED","Press Enter or Restart");
+ if(player.inv>0||state!=="playing")return;
+ player.health--;player.inv=.8;snd("hurt",.55);
+ shake=Math.max(shake,player.health<=0?5:3);
+ if(player.health<=0)gameOver(false);
+}
+function gameOver(won){
+ state=won?"won":"dead";
+ const isBest=score>best;
+ if(isBest){best=score;localStorage.setItem("dustdead_best",best)}
+ showMsg(won?"YOU WIN!":"YOU DIED",
+   (won?"The Angry Bison has been defeated.<br>":"")+
+   "Score: "+score+" &nbsp;•&nbsp; Best: "+best+(isBest?" — NEW BEST!":"")+"<br>Press Enter or Restart");
+}
+function updateParticles(){
+ for(let i=particles.length-1;i>=0;i--){
+   const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vx*=.97;p.vy*=.97;p.life-=dt;
+   if(p.life<=0)particles.splice(i,1);
  }
 }
 function updateBullets(){
@@ -326,11 +325,11 @@ function fireEnemyProjectile(e){
  const sx=e.x+e.w/2,sy=e.y+14;let [mx,my]=norm(e.momentumX||0,e.momentumY||0);
  if(!mx&&!my)[mx,my]=norm(player.x-sx,player.y-sy);
  const color=e.type==="witch"?"#42e66a":"#f3c84b";
- enemyBullets.push({x:sx-2,y:sy-2,w:2,h:2,vx:mx*3.375,vy:my*3.375,life:2.5,color});
+ enemyBullets.push({x:sx-2,y:sy-2,w:5,h:5,vx:mx*3.375,vy:my*3.375,life:2.5,color});
  for(let i=0;i<(e.type==="witch"?10:5);i++){const q=Math.random()*Math.PI*2;
-  particles.push({x:sx,y:sy,vx:Math.cos(q)*(.3+Math.random()*.8),vy:Math.sin(q)*(.3+Math.random()*.8),life:.2+Math.random()*.2,size:2,color});
+  particles.push({x:sx,y:sy,vx:Math.cos(q)*(.3+Math.random()*.8),vy:Math.sin(q)*(.3+Math.random()*.8),life:.2+Math.random()*.2,size:1+Math.random()*1.5,color});
  }
- if(e.type==="witch")snd("enemyShoot",0.28);
+ if(e.type==="witch")snd("witchCast",1);
 }
 function updateEnemyBullets(){
  for(let i=enemyBullets.length-1;i>=0;i--){
@@ -339,32 +338,23 @@ function updateEnemyBullets(){
   if(overlap(b,player)){hurt();for(let n=0;n<8;n++)particles.push({x:b.x,y:b.y,vx:(Math.random()-.5)*1.2,vy:(Math.random()-.5)*1.2,life:.25,size:2,color:b.color});enemyBullets.splice(i,1)}
  }
 }
-function updateParticles(){
- for(let i=particles.length-1;i>=0;i--){
-  const p=particles[i];
-  p.x+=p.vx*dt*60;p.y+=p.vy*dt*60;p.life-=dt;
-  if(p.life<=0)particles.splice(i,1);
- }
-}
 function drawBullets(){
- for(const b of bullets){ctx.fillStyle="#6b4610";ctx.fillRect(Math.round(b.x),Math.round(b.y),2,2);ctx.fillStyle="#f3c84b";ctx.fillRect(Math.round(b.x),Math.round(b.y),2,2)}
- for(const b of enemyBullets){ctx.fillStyle=b.color==="#42e66a"?"#123d18":"#6b4610";ctx.fillRect(Math.round(b.x),Math.round(b.y),2,2);ctx.fillStyle=b.color||"#f3c84b";ctx.fillRect(Math.round(b.x),Math.round(b.y),2,2)}
+ for(const b of bullets){ctx.fillStyle="#6b4610";ctx.fillRect(Math.round(b.x-1),Math.round(b.y-1),b.w+2,b.h+2);ctx.fillStyle="#f3c84b";ctx.fillRect(Math.round(b.x),Math.round(b.y),b.w,b.h)}
+ for(const b of enemyBullets){ctx.fillStyle=b.color==="#42e66a"?"#123d18":"#6b4610";ctx.fillRect(Math.round(b.x-1),Math.round(b.y-1),b.w+2,b.h+2);ctx.fillStyle=b.color||"#f3c84b";ctx.fillRect(Math.round(b.x),Math.round(b.y),b.w,b.h)}
 }
 
 function drawParticles(){
  for(const p of particles){
-  ctx.globalAlpha=Math.max(0,Math.min(1,p.life/.7));
-  ctx.fillStyle=p.color||"#d62929";
-  ctx.fillRect(Math.round(p.x),Math.round(p.y),2,2);
+   ctx.globalAlpha=Math.max(0,p.life/.7);
+   ctx.fillStyle=p.color||"#d62929";
+   ctx.fillRect(Math.round(p.x),Math.round(p.y),Math.max(1,Math.round(p.size)),Math.max(1,Math.round(p.size)));
  }
  ctx.globalAlpha=1;
 }
-const enemyDrawSize={skeleton:[15,30],zombie:[15,30],witch:[15,30],bison:[30,30]};
 function drawEnemy(e){
  if(e.dead)return;ctx.save();if(e.flash>0)ctx.globalAlpha=.5;
- const [dw,dh]=enemyDrawSize[e.type]||[15,30];
- if(enemyImages[e.type])ctx.drawImage(enemyImages[e.type],Math.round(e.x),Math.round(e.y),dw,dh);
- else{ctx.fillStyle=e.type==="zombie"?"#587b59":e.type==="witch"?"#725079":e.type==="bison"?"#71472a":"#aaa";ctx.fillRect(e.x+2,e.y+6,dw-4,dh-8);ctx.fillStyle="#20160f";ctx.fillRect(e.x+3,e.y+2,dw-6,7)}
+ if(enemyImages[e.type])ctx.drawImage(enemyImages[e.type],Math.round(e.x),Math.round(e.y),e.w,e.h);
+ else{ctx.fillStyle=e.type==="zombie"?"#587b59":e.type==="witch"?"#725079":e.type==="bison"?"#71472a":"#aaa";ctx.fillRect(e.x+2,e.y+6,e.w-4,e.h-8);ctx.fillStyle="#20160f";ctx.fillRect(e.x+3,e.y+2,e.w-6,7)}
  ctx.restore();
  if(e.boss){ctx.fillStyle="#24150d";ctx.fillRect(e.x-4,e.y-7,38,4);ctx.fillStyle="#d59a48";ctx.fillRect(e.x-3,e.y-6,36*(e.hp/e.max),2)}
 }
@@ -378,7 +368,13 @@ function render(){
  if(level===5&&bossBgReady)ctx.drawImage(bossBg,0,0,400,200);else if(bgReady)ctx.drawImage(bg,0,0,400,200);
  else {ctx.fillStyle="#6e8879";ctx.fillRect(0,0,W,H);}for(const e of enemies)drawEnemy(e);drawBullets();drawParticles();if(player)drawPlayer();ctx.restore();
 }
-function hud(){document.getElementById("lvl").textContent="LEVEL "+level;document.getElementById("hp").textContent="HP: "+Math.max(0,player?.health||0)+"/5";document.getElementById("en").textContent="ENEMIES: "+enemies.filter(e=>!e.dead).length}
+function hud(){
+ document.getElementById("lvl").textContent="LEVEL "+level;
+ document.getElementById("score").textContent="SCORE: "+score;
+ document.getElementById("hp").textContent="HP: "+Math.max(0,player?.health||0)+"/5";
+ document.getElementById("en").textContent="ENEMIES: "+enemies.filter(e=>!e.dead).length;
+ document.getElementById("danger").classList.toggle("active",!!player&&player.health===1&&state==="playing");
+}
 function showMsg(a,b){const m=document.getElementById("msg");m.innerHTML="<h2>"+a+"</h2><span>"+b+"</span>";m.classList.remove("hidden")}
 function hideMsg(){document.getElementById("msg").classList.add("hidden")}
 function next(){
@@ -389,21 +385,17 @@ function next(){
  clearTimer=0;
  if(completed===5){
    bossMusic.pause();
-   state="won";
-   showMsg("YOU WIN!","The Angry Bison has been defeated.");
+   gameOver(true);
    return;
  }
  state="transition";
  level=completed+1;
- showMsg("LEVEL "+completed+" COMPLETE","Get ready for LEVEL "+level);
+ showMsg("LEVEL "+completed+" COMPLETE","Score: "+score+" — Get ready for LEVEL "+level);
  transitionTimer=setTimeout(()=>{
    transitionTimer=null;
    hideMsg();
    setup();
  },1100);
-
- const danger=document.getElementById("danger");
- if(danger)danger.classList.toggle("active",!!player&&player.health===1&&state==="playing");
 }
 function startGame(){
  unlockAudio();
@@ -411,13 +403,22 @@ function startGame(){
  bossMusic.pause();
  bossMusic.currentTime=0;
  document.getElementById("start").classList.add("hidden");
+ score=0;prevState=null;
  level=1;setup()
 }
 document.getElementById("startBtn").onclick=startGame;
-document.getElementById("restart").onclick=()=>{level=1;startGame()};
-window.addEventListener("keydown",e=>{if(["KeyW","KeyA","KeyS","KeyD"].includes(e.code)){e.preventDefault();keys.add(e.code)}if(e.code==="Enter"&&state!=="playing"&&state!=="start"){level=1;setup()}});
-window.addEventListener("keyup",e=>keys.delete(e.code));
-canvas.addEventListener("mousedown",e=>{if(e.button===0){unlockAudio();hit()}});
+document.getElementById("restart").onclick=startGame;
+document.getElementById("mute").onclick=toggleMute;
+window.addEventListener("keydown",e=>{
+ if(["KeyW","KeyA","KeyS","KeyD"].includes(e.code)){e.preventDefault();keys.add(e.code)}
+ if(e.code==="Space"){e.preventDefault();unlockAudio();firing=true}
+ if(e.code==="KeyM")toggleMute();
+ if(e.code==="KeyP"||e.code==="Escape")togglePause();
+ if(e.code==="Enter"&&state!=="playing"&&state!=="paused"&&state!=="start")startGame();
+});
+window.addEventListener("keyup",e=>{keys.delete(e.code);if(e.code==="Space")firing=false});
+canvas.addEventListener("mousedown",e=>{if(e.button===0){unlockAudio();firing=true}});
+window.addEventListener("mouseup",e=>{if(e.button===0)firing=false});
 function loop(now){
  dt=Math.min(.033,(now-last)/1000);last=now;
  if(state==="playing"){
