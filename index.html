@@ -339,6 +339,13 @@ function updateEnemyBullets(){
   if(overlap(b,player)){hurt();for(let n=0;n<8;n++)particles.push({x:b.x,y:b.y,vx:(Math.random()-.5)*1.2,vy:(Math.random()-.5)*1.2,life:.25,size:2,color:b.color});enemyBullets.splice(i,1)}
  }
 }
+function updateParticles(){
+ for(let i=particles.length-1;i>=0;i--){
+  const p=particles[i];
+  p.x+=p.vx*dt*60;p.y+=p.vy*dt*60;p.life-=dt;
+  if(p.life<=0)particles.splice(i,1);
+ }
+}
 function drawBullets(){
  for(const b of bullets){ctx.fillStyle="#6b4610";ctx.fillRect(Math.round(b.x),Math.round(b.y),2,2);ctx.fillStyle="#f3c84b";ctx.fillRect(Math.round(b.x),Math.round(b.y),2,2)}
  for(const b of enemyBullets){ctx.fillStyle=b.color==="#42e66a"?"#123d18":"#6b4610";ctx.fillRect(Math.round(b.x),Math.round(b.y),2,2);ctx.fillStyle=b.color||"#f3c84b";ctx.fillRect(Math.round(b.x),Math.round(b.y),2,2)}
